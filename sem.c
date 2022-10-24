@@ -40,6 +40,7 @@
 static struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET_OR(DT_ALIAS(led0), gpios, {0});
 static struct gpio_dt_spec led1 = GPIO_DT_SPEC_GET_OR(DT_ALIAS(led1), gpios, {0});
 
+gpio_pin_toggle()
 
 /*
  * @param my_name      thread identification string
@@ -56,12 +57,11 @@ void helloLoop(const char *my_name, struct k_sem *my_sem, struct k_sem *other_se
 		/* take my semaphore */
 		k_sem_take(my_sem, K_FOREVER);
 
-		gpio_pin_toggle_dt(&led0);
 		current_thread = k_current_get();
 		tname = k_thread_name_get(current_thread);
 
 		/* toggle led */
-		gpio_pin_toggle(led, led->pin);
+		gpio_pin_toggle(led);
 
 		/* wait a while, then let other thread have a turn */
 		k_busy_wait(100000);
@@ -99,6 +99,14 @@ void threadA(void *dummy1, void *dummy2, void *dummy3)
 
 void main(void)
 {
+    int ret = gpio_pin_configure_dt(&led0, GPIO_OUTPUT_ACTIVE);
+    if (ret < 0)
+        printk("Error %d: failed to configure LED0 pin %d", ret, led0.pin);
+
+    int ret = gpio_pin_configure_dt(&led1, GPIO_OUTPUT_ACTIVE);
+    if (ret < 0)
+        printk("Error %d: failed to configure LED0 pin %d", ret, led0.pin);
+
 	k_thread_create(&threadA_data, threadA_stack_area,
 			K_THREAD_STACK_SIZEOF(threadA_stack_area),
 			threadA, NULL, NULL, NULL,
