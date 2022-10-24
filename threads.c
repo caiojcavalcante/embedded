@@ -7,11 +7,7 @@
  */
 
 #include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/sys/util.h>
 #include <zephyr/sys/printk.h>
-#include <inttypes.h>
 
 /*
  * The hello world demo has two threads that utilize semaphores and sleeping
@@ -33,37 +29,37 @@
 /* delay between greetings (in ms) */
 #define SLEEPTIME 500
 
-#define LED0_NODE DT_ALIAS(led0)
-#define LED1_NODE DT_ALIAS(led1)
-
-//define os leds
-static struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET_OR(DT_ALIAS(led0), gpios, {0});
-static struct gpio_dt_spec led1 = GPIO_DT_SPEC_GET_OR(DT_ALIAS(led1), gpios, {0});
-
-gpio_pin_toggle()
 
 /*
  * @param my_name      thread identification string
  * @param my_sem       thread's own semaphore
  * @param other_sem    other thread's semaphore
  */
-void helloLoop(const char *my_name, struct k_sem *my_sem, struct k_sem *other_sem, struct gpio_dt_spec *led)
+void helloLoop(const char *my_name, struct k_sem *my_sem, struct k_sem *other_sem)
 {
 	const char *tname;
-	uint8_t cpu = 0;
+	uint8_t cpu;
 	struct k_thread *current_thread;
 
 	while (1) {
 		/* take my semaphore */
 		k_sem_take(my_sem, K_FOREVER);
 
-		current_thread = k_current_get();
-		tname = k_thread_name_get(current_thread);
-
-		printk("%d", __LINE__);
-
-		/* toggle led */
-		gpio_pin_toggle(led);
+		current_thread = k_current_get(); //WHAT THREAD IS THIS?
+		tname = k_thread_name_get(current_thread); // WHAT IS ITS NAME.
+#if CONFIG_SMP
+		cpu = arch_curr_cpu()->id;
+#else
+		cpu = 0;
+#endif
+		/* say "hello" */
+		if (tname == NULL) {
+			printk("%s: Hello World from cpu %d on %s!\n",
+				my_name, cpu, CONFIG_BOARD);
+		} else {
+			printk("%s: Hello World from cpu %d on %s!\n",
+				tname, cpu, CONFIG_BOARD);
+		}
 
 		/* wait a while, then let other thread have a turn */
 		k_busy_wait(100000);
@@ -81,8 +77,13 @@ K_SEM_DEFINE(threadB_sem, 0, 1);	/* starts off "not available" */
 /* threadB is a dynamic thread that is spawned by threadA */
 
 void threadB(void *dummy1, void *dummy2, void *dummy3)
-{	/* invoke routine to ping-pong hello messages with threadA */
-	helloLoop(__func__, &threadB_sem, &threadA_sem, &led1);
+{
+	ARG_UNUSED(dummy1);
+	ARG_UNUSED(dummy2);
+	ARG_UNUSED(dummy3);
+
+	/* invoke routine to ping-pong hello messages with threadA */
+	helloLoop(__func__, &threadB_sem, &threadA_sem);
 }
 
 K_THREAD_STACK_DEFINE(threadA_stack_area, STACKSIZE);
@@ -95,20 +96,16 @@ static struct k_thread threadB_data;
 
 void threadA(void *dummy1, void *dummy2, void *dummy3)
 {
+	ARG_UNUSED(dummy1);
+	ARG_UNUSED(dummy2);
+	ARG_UNUSED(dummy3);
+
 	/* invoke routine to ping-pong hello messages with threadB */
-	helloLoop(__func__, &threadA_sem, &threadB_sem, &led0);
+	helloLoop(__func__, &threadA_sem, &threadB_sem);
 }
 
 void main(void)
 {
-    int ret = gpio_pin_configure_dt(&led0, GPIO_OUTPUT_ACTIVE);
-    if (ret < 0)
-        printk("Error %d: failed to configure LED0 pin %d", ret, led0.pin);
-
-    int ret = gpio_pin_configure_dt(&led1, GPIO_OUTPUT_ACTIVE);
-    if (ret < 0)
-        printk("Error %d: failed to configure LED0 pin %d", ret, led0.pin);
-
 	k_thread_create(&threadA_data, threadA_stack_area,
 			K_THREAD_STACK_SIZEOF(threadA_stack_area),
 			threadA, NULL, NULL, NULL,
