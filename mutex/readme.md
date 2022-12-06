@@ -1,9 +1,9 @@
 # Why to use a mutex? 
-When using threads, sometimes, the threads can try to access the same data at the same time, which can cause a deadlock, for that reason, there is a tool called mutex *(short for mutual exclusion)*, which guarantees only one thread have acces to certain data.
+When using threads, sometimes, the threads can try to access the same data at the same time, which can cause a deadlock, for that reason, there is a tool called mutex *(short for mutual exclusion)*, which guarantees only one thread have access to certain data.
 
 #How does it work?
 
-Before a thread access the data, the thread has to lock the mutex before accessing it, if the mutex is already locked, the thread will not access it, if the thread can successfuly lock the mutex, the thread can proceed to work and then unlock it. 
+Before a thread can access the data, the thread has to lock the mutex, if the mutex is already locked, the thread will not access it, if the thread can successfuly lock the mutex, the thread can proceed to work and then unlock it. 
 
 
 # Mutex sample
